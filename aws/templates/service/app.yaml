@@ -26,6 +26,9 @@ Parameters:
   AppImage:
     Type: String
 
+  AppTaskFamily:
+    Type: String
+
   AppTaskCount:
     Type: String
 
@@ -42,6 +45,12 @@ Parameters:
     Type: String
 
   AwsSecret:
+    Type: String
+
+  AwsCognitoUserPoolId:
+    Type: String
+
+  AwsCognitoClientId:
     Type: String
 
   ImageBucket:
@@ -70,7 +79,7 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: app
+      Family: !Ref AppTaskFamily
       RequiresCompatibilities:
         - EC2
       Memory: 256
@@ -103,6 +112,10 @@ Resources:
               Value: !Ref AWS::Region
             - NAME: AWS_S3_IMAGE_BUCKET_NAME
               Value: !Ref ImageBucket
+            - NAME: AWS_COGNITO_USER_POOL_ID
+              Value: !Ref AwsCognitoUserPoolId
+            - NAME: AWS_COGNITO_CLIENT_ID
+              Value: !Ref AwsCognitoClientId
             - NAME: FLASK_ENV
               Value: !Ref FlaskEnv
             - NAME: ASOBANN_DEBUG_OPTS

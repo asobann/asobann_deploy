@@ -11,11 +11,11 @@ Parameters:
   TargetGroup:
     Type: String
 
-#  SourceSecurityGroup:
-#    Type: AWS::EC2::SecurityGroup::Id
+  #  SourceSecurityGroup:
+  #    Type: AWS::EC2::SecurityGroup::Id
 
-#  Subnets:
-#    Type: List<AWS::EC2::Subnet::Id>
+  #  Subnets:
+  #    Type: List<AWS::EC2::Subnet::Id>
 
   VpcId:
     Type: AWS::EC2::VPC::Id
@@ -27,6 +27,9 @@ Parameters:
     Type: String
 
   AppTaskCount:
+    Type: String
+
+  AppTaskFamily:
     Type: String
 
   PublicHostname:
@@ -42,6 +45,12 @@ Parameters:
     Type: String
 
   AwsSecret:
+    Type: String
+
+  AwsCognitoUserPoolId:
+    Type: String
+
+  AwsCognitoClientId:
     Type: String
 
   ImageBucket:
@@ -119,12 +128,15 @@ Resources:
         TargetGroup: !Ref TargetGroup
         MongoDbPassword: !Ref MongoDbPassword
         AppImage: !Ref AppImage
+        AppTaskFamily: !Ref AppTaskFamily
         AppTaskCount: !Ref AppTaskCount
         PublicHostname: !Ref PublicHostname
         GoogleAnalyticsId: !Ref GoogleAnalyticsId
         UploadedImageStore: !Ref UploadedImageStore
         AwsKey: !Ref AwsKey
         AwsSecret: !Ref AwsSecret
+        AwsCognitoUserPoolId: !Ref AwsCognitoUserPoolId
+        AwsCognitoClientId: !Ref AwsCognitoClientId
         ImageBucket: !Ref ImageBucket
         FlaskEnv: !Ref FlaskEnv
         DebugOpts: !Ref DebugOpts

@@ -21,6 +21,9 @@ Parameters:
   AppImage:
     Type: String
 
+  AppTaskFamily:
+    Type: String
+
   AppTaskCount:
     Type: String
     Default: 3
@@ -42,6 +45,12 @@ Parameters:
   AwsSecret:
     Type: String
     Default: NOT_SET
+
+  AwsCognitoUserPoolId:
+    Type: String
+
+  AwsCognitoClientId:
+    Type: String
 
   FlaskEnv:
     Type: String
@@ -89,11 +98,14 @@ Resources:
         TargetGroup: !GetAtt LoadBalancer.Outputs.TargetGroup
         MongoDbPassword: !Ref MongoDbPassword
         AppImage: !Ref AppImage
+        AppTaskFamily: !Ref AppTaskFamily
         AppTaskCount: !Ref AppTaskCount
         PublicHostname: !Ref PublicHostname
         GoogleAnalyticsId: !Ref GoogleAnalyticsId
         AwsKey: !Ref AwsKey
         AwsSecret: !Ref AwsSecret
+        AwsCognitoUserPoolId: !Ref AwsCognitoUserPoolId
+        AwsCognitoClientId: !Ref AwsCognitoClientId
         UploadedImageStore: !Ref UploadedImageStore
         ImageBucket: !GetAtt S3Bucket.Outputs.ImageBucket
         AsobannEnv: !Ref AWS::StackName
