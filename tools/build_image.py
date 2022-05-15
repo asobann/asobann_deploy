@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 import os
 import subprocess
@@ -49,14 +50,33 @@ def build_docker_image():
 
 
 def push_docker_image():
-    system('docker tag asobann_aws 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws')
+    system('docker tag asobann_aws:latest 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws:latest')
     system('aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws')
-    system('docker push 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws')
+    system('docker push 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws:latest')
+
+
+def build_latest():
+    build_docker_image()
+    push_docker_image()
+
+
+def tag_latest_as_production():
+    system('docker tag asobann_aws:latest 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws:production')
+    system('aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws')
+    system('docker push 550251267268.dkr.ecr.us-east-1.amazonaws.com/asobann_aws:production')
 
 
 def main():
-    build_docker_image()
-    push_docker_image()
+    arg = sys.argv[1:]
+    if len(arg) < 1:
+        cmd = 'build_latest'
+    else:
+        cmd = arg[0]
+
+    if cmd == 'build_latest':
+        build_latest()
+    elif cmd == 'tag_latest_as_production':
+        tag_latest_as_production()
 
 
 if __name__=='__main__':
