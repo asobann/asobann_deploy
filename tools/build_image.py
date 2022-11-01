@@ -45,7 +45,7 @@ def system(cmd, capture=False, cwd=None, daemon=False):
 
 def build_docker_image():
     os.chdir(config['REPO_APP_DIR'])
-    system('pipenv lock -r > requirements.txt')
+    system('pipenv requirements > requirements.txt')
     system('docker build -f Dockerfile.aws -t asobann_aws:latest .')
 
 
