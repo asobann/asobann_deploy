@@ -1,0 +1,16 @@
+# cfn-lint の設定。CIとローカルで同じ結果になるよう、対象と除外をここに書く。
+#
+# ローカル実行:
+#   pip install cfn-lint==1.54.0 && cfn-lint
+
+templates:
+  - aws/asobann_aws.yaml
+  - aws/fargate.yaml
+  - aws/templates/*.yaml
+  - aws/templates/service/*.yaml
+
+ignore_checks:
+  # W3002: TemplateURL がローカルパスなので `package` が必要、という警告。
+  # 旧構成のネストスタックは意図的にそう書いており、デプロイ時に package する。
+  # 指摘そのものは正しいが恒常的に出るため、他の警告を埋もれさせないよう除外する。
+  - W3002
