@@ -30,6 +30,10 @@ OUTDIR=${1:-$(pwd)}
 
 ARCHIVE="$OUTDIR/asobann-$(date +%Y%m%d-%H%M%S).gz"
 
+# 出力先の準備はセキュリティグループを開ける前に済ませる。書けないディレクトリを
+# 指定していた場合に、穴を開けてから失敗するのを避けるため。
+mkdir -p "$OUTDIR"
+
 echo "==> 対象を特定する"
 
 # mongoタスクのhostPortは動的割り当てのため、タスク再起動のたびに変わる。毎回引き直す。
@@ -51,18 +55,30 @@ read -r public_ip sg_ids <<<"$(aws ec2 describe-instances --instance-ids "$insta
 
 # SGが複数あるとどれを開ければよいか一意に決まらないので、その場合は手動対応にする
 case "$sg_ids" in
-  *,*) echo "セキュリティグループが複数ある($sg_ids)。手動で確認すること" >&2; exit 1 ;;
+  '' | None) echo "セキュリティグループを特定できなかった" >&2; exit 1 ;;
+  *,*)       echo "セキュリティグループが複数ある($sg_ids)。手動で確認すること" >&2; exit 1 ;;
+esac
+
+# パブリックIPが無いインスタンスには手元から到達できない。ここで止めないと
+# mongodumpが分かりにくい接続エラーで落ちる。
+case "$public_ip" in
+  '' | None) echo "インスタンスにパブリックIPが無いため到達できない" >&2; exit 1 ;;
 esac
 
 my_ip=$(curl -s --max-time 10 https://checkip.amazonaws.com)
+[ -n "$my_ip" ] || { echo "自分のグローバルIPを取得できなかった" >&2; exit 1; }
 
 echo "    instance : $instance_id ($public_ip)"
 echo "    hostPort : $host_port"
 echo "    SG       : $sg_ids"
 echo "    自分のIP : $my_ip"
 
-# 開けたルールは何があっても閉じる
+# 開けたルールは何があっても閉じる。
+# authorizeが失敗した場合まで「削除に失敗した」と警告すると、開いていないのに
+# 手動確認を促すことになるので、開けたときだけ閉じる。
+opened=no
 revoke() {
+  [ "$opened" = yes ] || return 0
   echo "==> セキュリティグループのルールを削除する"
   if aws ec2 revoke-security-group-ingress --group-id "$sg_ids" \
        --ip-permissions "IpProtocol=tcp,FromPort=${host_port},ToPort=${host_port},IpRanges=[{CidrIp=${my_ip}/32}]" \
@@ -78,6 +94,7 @@ echo "==> tcp/${host_port} を ${my_ip}/32 にだけ開ける"
 aws ec2 authorize-security-group-ingress --group-id "$sg_ids" \
   --ip-permissions "IpProtocol=tcp,FromPort=${host_port},ToPort=${host_port},IpRanges=[{CidrIp=${my_ip}/32,Description='temporary mongodump access'}]" \
   --query 'SecurityGroupRules[].SecurityGroupRuleId' --output text
+opened=yes
 
 # パスワードはCloudFormationのパラメータに平文で入っている（NoEcho未設定）。
 # 引数に渡すとホストのプロセス一覧に出るので、環境変数で受け渡す。
@@ -86,10 +103,9 @@ PW=$(aws cloudformation describe-stacks --stack-name "$STACK" \
   --query 'Stacks[0].Parameters[?ParameterKey==`MongoDbPassword`].ParameterValue' --output text)
 
 echo "==> mongodump"
-mkdir -p "$OUTDIR"
 docker run --rm --user "$(id -u):$(id -g)" -e PW -v "$OUTDIR:/out" "$MONGO_IMAGE" \
-  sh -c "mongodump --host ${public_ip}:${host_port} -u ${MONGO_USER} -p \"\$PW\" \
-         --authenticationDatabase admin --archive=/out/$(basename "$ARCHIVE") --gzip"
+  sh -c "mongodump --host \"${public_ip}:${host_port}\" -u \"${MONGO_USER}\" -p \"\$PW\" \
+         --authenticationDatabase admin --archive=\"/out/$(basename "$ARCHIVE")\" --gzip"
 
 echo "==> 完了: $ARCHIVE"
 ls -lh "$ARCHIVE"
