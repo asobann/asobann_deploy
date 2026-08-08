@@ -48,7 +48,7 @@ Resources:
       ExecutionRoleArn: !Ref TaskExecutionRole
       ContainerDefinitions:
         - Name: mongodb-container
-          Image: mongo:latest
+          Image: mongo:5
           Essential: true
           PortMappings:
             - Protocol: tcp
@@ -72,7 +72,7 @@ Resources:
         - Name: !Sub mongodb-data-${AsobannEnv}
           DockerVolumeConfiguration:
             Scope: shared
-            AutoProvision: true
+            Autoprovision: true
             Driver: rexray/ebs
             DriverOpts:
               volumetype: gp2
