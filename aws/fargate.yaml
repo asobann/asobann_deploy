@@ -1,0 +1,408 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  asobann on ECS Fargate.
+  ADR 0004 に基づき、ECS on EC2 から Fargate へ移行するための構成。
+  MongoDB は Atlas を使うため、このスタックはデータストアを持たない（ADR 0003）。
+  Route53レコードとACM証明書は別アカウントのホストゾーンに関わるため、このスタックの外で扱う。
+
+Parameters:
+  PublicHostname:
+    Type: String
+    Description: このスタックが応答するホスト名。切り替え前は next.asobann.yattom.jp 等、切り替え時に asobann.yattom.jp へ変更する
+
+  CertificateArn:
+    Type: String
+    Description: ALBに設定するACM証明書。このアカウント・このリージョンに存在すること
+
+  AppImage:
+    Type: String
+    Description: アプリのコンテナイメージURI
+
+  MongoDbUriParameterName:
+    Type: String
+    Default: /asobann/prod/mongodb_uri
+    Description: MongoDB接続文字列を格納したSSMパラメータ名（SecureString）
+
+  AppTaskCount:
+    Type: Number
+    Default: 1
+    Description: タスク数。1ならRedis不要でスティッキーセッションも実質不要（ADR 0004）
+
+  TaskCpu:
+    Type: String
+    Default: 256
+
+  TaskMemory:
+    Type: String
+    Default: 512
+
+  GoogleAnalyticsId:
+    Type: String
+    Default: ''
+
+
+Resources:
+
+  # ---------------------------------------------------------------- ネットワーク
+  # NAT Gatewayを置かず、タスクをパブリックサブネットに直接配置する。
+  # ECRとAtlasへの通信はInternet Gateway経由。NAT Gateway代（月$30〜40）を避けるため。
+
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.1.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-vpc
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.1.0.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.1.1.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  # ---------------------------------------------------------------- セキュリティグループ
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: asobann load balancer
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: http (redirects to https)
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: https
+
+  TaskSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: asobann app tasks
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5000
+          ToPort: 5000
+          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          Description: from load balancer only
+
+  # ---------------------------------------------------------------- ロードバランサ
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Scheme: internet-facing
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      LoadBalancerAttributes:
+        # socket.ioのping間隔は25秒。既定の60秒でも足りるが、依存を明示するため設定する
+        - Key: idle_timeout.timeout_seconds
+          Value: 120
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      VpcId: !Ref Vpc
+      Port: 5000
+      Protocol: HTTP
+      # Fargateはawsvpcネットワークモードのため instance ではなく ip
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      # トップページは新規テーブルへ302リダイレクトするため 200 だけでは不合格になる
+      Matcher:
+        HttpCode: 200-399
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30
+        # 1タスクなら実質不要だが、タスクを増やしたときにsocket.ioのハンドシェイクが
+        # 破綻しないよう有効にしておく（pollingで握手してからwebsocketへ上がるため）
+        - Key: stickiness.enabled
+          Value: true
+        - Key: stickiness.type
+          Value: lb_cookie
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: redirect
+          RedirectConfig:
+            Protocol: HTTPS
+            Port: 443
+            StatusCode: HTTP_301
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # ---------------------------------------------------------------- 画像アップロード先
+  # 2023年4月以降に作られるバケットは既定でACLが無効。アプリは public-read ACL を
+  # 付けてアップロードするため、明示的にACLを有効化する必要がある。
+  # （アプリ側を直すのが本筋だが、ADR 0002によりイメージは変更しない）
+
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [GET]
+            AllowedOrigins: ['*']
+            AllowedHeaders: ['*']
+
+  # ---------------------------------------------------------------- IAM
+  # 実行ロール: ECSがイメージを引き、ログを書き、シークレットを読むために使う
+  # タスクロール: アプリ自身がS3を触るために使う
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-secrets
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MongoDbUriParameterName}
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: image-bucket-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                  - s3:GetObject
+                Resource: !Sub ${ImageBucket.Arn}/*
+        # 旧構成ではEC2ホストへ入る手段が全滅し（SSH鍵紛失、EC2 Instance ConnectとSSMは
+        # エージェント未導入）、DBのダンプ取得にセキュリティグループの一時開放が必要になった。
+        # 同じ轍を踏まないよう、最初からECS Execでコンテナに入れるようにしておく。
+        #   aws ecs execute-command --cluster <name> --task <id> --container app --interactive --command /bin/bash
+        - PolicyName: ecs-exec
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                Resource: '*'
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+      RetentionInDays: 30
+
+  # ---------------------------------------------------------------- ECS
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref AWS::StackName
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-app
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: app
+          Image: !Ref AppImage
+          Essential: true
+          # イメージのCMDは `python3 -m asobann.deploy ; python3 -m asobann.wsgi` で、
+          # 起動のたびにキット初期化がDBを上書きし、イメージに無いキットを消してしまう。
+          # 初期化を実行しないよう上書きする（ADR 0007）
+          Command:
+            - python3
+            - -m
+            - asobann.wsgi
+          PortMappings:
+            - ContainerPort: 5000
+              Protocol: tcp
+          Environment:
+            - Name: PUBLIC_HOSTNAME
+              Value: !Ref PublicHostname
+            - Name: FLASK_ENV
+              Value: production
+            - Name: GOOGLE_ANALYTICS_ID
+              Value: !Ref GoogleAnalyticsId
+            - Name: UPLOADED_IMAGE_STORE
+              Value: s3
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: AWS_S3_IMAGE_BUCKET_NAME
+              Value: !Ref ImageBucket
+            # config_common.py は UPLOADED_IMAGE_STORE=s3 のとき AWS_KEY / AWS_SECRET を必須にする。
+            # 空文字を渡すと boto3 は明示指定とみなさず既定の認証チェーンにフォールバックし、
+            # タスクロールが使われる（イメージ内で実測確認済み）。静的キーを持たずに済む
+            - Name: AWS_KEY
+              Value: ''
+            - Name: AWS_SECRET
+              Value: ''
+          Secrets:
+            - Name: MONGODB_URI
+              ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MongoDbUriParameterName}
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: app
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: HttpsListener
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      PlatformVersion: LATEST
+      DesiredCount: !Ref AppTaskCount
+      TaskDefinition: !Ref TaskDefinition
+      EnableExecuteCommand: true
+      HealthCheckGracePeriodSeconds: 60
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 200
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          # NAT Gatewayを置かないため、パブリックIPを付けてIGW経由で外に出る
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref TaskSecurityGroup
+      LoadBalancers:
+        - ContainerName: app
+          ContainerPort: 5000
+          TargetGroupArn: !Ref TargetGroup
+
+
+Outputs:
+  LoadBalancerDnsName:
+    Description: Route53のALIASレコードの向き先に指定する値
+    Value: !GetAtt LoadBalancer.DNSName
+
+  LoadBalancerHostedZoneId:
+    Description: ALIASレコード作成時に必要なホストゾーンID
+    Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+
+  ImageBucketName:
+    Description: 旧アカウントのバケットから中身を同期する先
+    Value: !Ref ImageBucket
+
+  ClusterName:
+    Value: !Ref Cluster

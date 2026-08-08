@@ -100,25 +100,25 @@ Resources:
               Value: redis+srv://redis.asobann-internal.yattom.jp
             - Name: PUBLIC_HOSTNAME
               Value: !Ref PublicHostname
-            - NAME: GOOGLE_ANALYTICS_ID
+            - Name: GOOGLE_ANALYTICS_ID
               Value: !Ref GoogleAnalyticsId
-            - NAME: UPLOADED_IMAGE_STORE
+            - Name: UPLOADED_IMAGE_STORE
               Value: !Ref UploadedImageStore
-            - NAME: AWS_KEY
+            - Name: AWS_KEY
               Value: !Ref AwsKey
-            - NAME: AWS_SECRET
+            - Name: AWS_SECRET
               Value: !Ref AwsSecret
-            - NAME: AWS_REGION
+            - Name: AWS_REGION
               Value: !Ref AWS::Region
-            - NAME: AWS_S3_IMAGE_BUCKET_NAME
+            - Name: AWS_S3_IMAGE_BUCKET_NAME
               Value: !Ref ImageBucket
-            - NAME: AWS_COGNITO_USER_POOL_ID
+            - Name: AWS_COGNITO_USER_POOL_ID
               Value: !Ref AwsCognitoUserPoolId
-            - NAME: AWS_COGNITO_CLIENT_ID
+            - Name: AWS_COGNITO_CLIENT_ID
               Value: !Ref AwsCognitoClientId
-            - NAME: FLASK_ENV
+            - Name: FLASK_ENV
               Value: !Ref FlaskEnv
-            - NAME: ASOBANN_DEBUG_OPTS
+            - Name: ASOBANN_DEBUG_OPTS
               Value: !Ref DebugOpts
           LogConfiguration:
             LogDriver: awslogs
