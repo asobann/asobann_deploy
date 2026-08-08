@@ -3,11 +3,10 @@
 # ローカル実行:
 #   pip install cfn-lint==1.54.0 && cfn-lint
 
+# 再帰グロブにする。既存の階層を名指しすると、新しいディレクトリに置いた
+# テンプレートが黙って検査対象から外れ、そのこと自体に誰も気づかない。
 templates:
-  - aws/asobann_aws.yaml
-  - aws/fargate.yaml
-  - aws/templates/*.yaml
-  - aws/templates/service/*.yaml
+  - aws/**/*.yaml
 
 ignore_checks:
   # W3002: TemplateURL がローカルパスなので `package` が必要、という警告。
