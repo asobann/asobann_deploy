@@ -26,4 +26,8 @@ jobs:
       # 警告では落とさずエラーだけで落とす。旧EC2構成には移行完了まで解消しない
       # 警告（LaunchConfigurationが保守モード等）が残っており、それで恒常的に
       # 赤くなると、本当に見るべきエラーが埋もれるため。
+      #
+      # 現在の警告はすべて旧構成に由来する。Fargateへのカットオーバー後に
+      # 旧テンプレートを削除したら警告はゼロになるはずなので、その時点で
+      # --non-zero-exit-code warning に引き上げること。
       - run: cfn-lint --non-zero-exit-code error
