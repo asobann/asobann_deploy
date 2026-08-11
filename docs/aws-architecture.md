@@ -42,7 +42,7 @@ asobann_aws.yaml
 
 1. asobann_appでイメージビルド（`npx webpack` → `pipenv requirements > requirements.txt` → `docker build -f Dockerfile.aws`）→ ECRへpush
 2. `aws cloudformation package` でテンプレートをS3へ → `aws cloudformation deploy`
-3. アプリコンテナはCMDで `asobann.deploy`（キット初期データ投入）→ `asobann.wsgi` を実行
+3. アプリコンテナはCMDで `asobann.deploy`（キット初期データ投入）→ `asobann.asgi` を実行
 
 READMEに詳細手順があるが、`cd aws_dev` は現在の `aws/` ディレクトリの旧名なので読み替えること。
 

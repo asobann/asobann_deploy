@@ -342,13 +342,13 @@ Resources:
         - Name: app
           Image: !Ref AppImage
           Essential: true
-          # イメージのCMDは `python3 -m asobann.deploy ; python3 -m asobann.wsgi` で、
+          # イメージのCMDは `python3 -m asobann.deploy ; python3 -m asobann.asgi` で、
           # 起動のたびにキット初期化がDBを上書きし、イメージに無いキットを消してしまう。
           # 初期化を実行しないよう上書きする（ADR 0007）
           Command:
             - python3
             - -m
-            - asobann.wsgi
+            - asobann.asgi
           PortMappings:
             - ContainerPort: 5000
               Protocol: tcp
