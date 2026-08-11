@@ -10,7 +10,7 @@
 # ビルドは1回だけ行い、同じdigestを staging → 本番 と昇格させる（ADR 0009）。
 # 本番用に作り直したイメージは、stagingで確認したものとは別物になる。
 #
-# 前提: docker, aws cli, node（npx webpack）, uv
+# 前提: docker, aws cli, node + pnpm, uv
 #
 # 使い方:
 #   ./build_image.sh            # ビルドのみ
@@ -60,13 +60,13 @@ echo "==> フロントエンドをビルドする"
 # webpackの出力先は src/asobann/app/static/ で、これを Dockerfile.aws が
 # src ごと COPY する。つまりビルド順序に依存がある（webpack → docker build）。
 #
-# node_modules があっても必ず npm ci する。ここを「無ければ入れる」にすると、
-# 手元に残った別ブランチのnode_modulesでビルドしてしまう。実際に2026-08-09時点で
+# node_modules があっても必ず frozen-lockfile で入れ直す。ここを「無ければ入れる」に
+# すると、手元に残った別ブランチのnode_modulesでビルドしてしまう。実際に2026-08-09時点で
 # 手元にはslowness_issueブランチのもの（webpack 5.93 / socket.io-client 4.7.5）が
 # 残っており、masterのlock（5.72.1 / 4.5.1）と食い違っていた。
-# npm ci は node_modules を捨ててlockどおりに入れ直す。
-npm ci
-npx webpack
+# pnpm install --frozen-lockfile はlockと不一致なら失敗し、node_modulesをlockどおりに揃える。
+pnpm install --frozen-lockfile
+pnpm exec webpack
 
 echo "==> イメージをビルドする"
 

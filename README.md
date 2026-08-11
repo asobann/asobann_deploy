@@ -24,7 +24,7 @@ Deploy [asobann](https://github.com/yattom/asobann_app) to AWS ECS with CloudFor
 
    ```shell script
    % cd /path/to/asobann
-   % npm install
+   % pnpm install
    ```
 
    Install [uv](https://docs.astral.sh/uv/) for Python dependency management.
@@ -33,7 +33,7 @@ Deploy [asobann](https://github.com/yattom/asobann_app) to AWS ECS with CloudFor
 
    ```shell script
    % cd /path/to/asobann_app
-   % npx webpack
+   % pnpm exec webpack
    % uv export --frozen --no-dev --no-emit-project --no-hashes -o requirements.txt
    % docker build -f Dockerfile.aws -t asobann_aws:latest .
    % docker tag asobann_aws 999999999999.dkr.ecr.REGION.amazonaws.com/asobann_aws
@@ -112,7 +112,7 @@ I set and use shell aliases like this:
 alias build_aws=' \
   # run from asobann_app dir
   set -x ; \
-  npx watch ; \
+  pnpm exec webpack ; \
   docker build -f Dockerfile.aws -t asobann_aws:latest . ; \
   docker tag asobann_aws 999999999999.dkr.ecr.us-east-1.amazonaws.com/asobann_aws ; \
   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 999999999999.dkr.ecr.us-east-1.amazonaws.com/asobann_aws ; \
