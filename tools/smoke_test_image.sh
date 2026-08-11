@@ -47,7 +47,7 @@ docker run -d --name smoke-app --network "$NETWORK" -p "$PORT:5000" \
   -e PUBLIC_HOSTNAME=localhost \
   -e GOOGLE_ANALYTICS_ID= \
   -e UPLOADED_IMAGE_STORE=local \
-  "$IMAGE" python3 -m asobann.wsgi >/dev/null
+  "$IMAGE" python3 -m asobann.asgi >/dev/null
 
 echo "==> 応答を確かめる"
 
