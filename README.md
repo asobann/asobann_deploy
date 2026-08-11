@@ -25,16 +25,16 @@ Deploy [asobann](https://github.com/yattom/asobann_app) to AWS ECS with CloudFor
    ```shell script
    % cd /path/to/asobann
    % npm install
-   % pip install pipenv
    ```
+
+   Install [uv](https://docs.astral.sh/uv/) for Python dependency management.
 
 1. Build asobann image and push to ECR.
 
    ```shell script
    % cd /path/to/asobann_app
    % npx webpack
-   % pipenv sync
-   % pipenv run pip freeze > requirements.txt
+   % uv export --frozen --no-dev --no-emit-project --no-hashes -o requirements.txt
    % docker build -f Dockerfile.aws -t asobann_aws:latest .
    % docker tag asobann_aws 999999999999.dkr.ecr.REGION.amazonaws.com/asobann_aws
    % aws ecr get-login-password --region REGION | docker login --username AWS --password-stdin \

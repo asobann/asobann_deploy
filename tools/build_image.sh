@@ -10,7 +10,7 @@
 # ビルドは1回だけ行い、同じdigestを staging → 本番 と昇格させる（ADR 0009）。
 # 本番用に作り直したイメージは、stagingで確認したものとは別物になる。
 #
-# 前提: docker, aws cli, node（npx webpack）, pipenv
+# 前提: docker, aws cli, node（npx webpack）, uv
 #
 # 使い方:
 #   ./build_image.sh            # ビルドのみ
@@ -50,10 +50,10 @@ echo "$TAG"
 
 echo "==> 依存を書き出す"
 
-# Dockerfile.aws は requirements.txt を COPY する。Pipfile.lock が正で、
+# Dockerfile.aws は requirements.txt を COPY する。uv.lock が正で、
 # requirements.txt はその都度生成する中間物（gitignore済み）。
-pipenv requirements > requirements.txt
-echo "$(grep -c . requirements.txt) パッケージ"
+uv export --frozen --no-dev --no-emit-project --no-hashes -o requirements.txt --quiet
+echo "$(grep -cE '^[a-zA-Z0-9]' requirements.txt) パッケージ"
 
 echo "==> フロントエンドをビルドする"
 
