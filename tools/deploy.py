@@ -41,6 +41,9 @@ def build_command(env, image_tag, no_execute_changeset=False):
     ]
     cmd = [
         'aws', 'cloudformation', 'deploy',
+        # リージョンは明示する。呼び出し元の既定設定に任せると、プロファイルの
+        # region 設定次第で意図しないリージョンのスタックを触りうる。
+        '--region', environments.REGION,
         '--template-file', str(TEMPLATE),
         '--stack-name', p['stack_name'],
         '--parameter-overrides', *overrides,

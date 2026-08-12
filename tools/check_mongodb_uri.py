@@ -32,8 +32,14 @@ ALPHANUMERIC = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567
 
 
 def get_parameter(profile_name, region_name, name):
-    """SecureStringを復号して取り出す。呼び出し側で表示しないこと。"""
-    session = boto3.Session(profile_name=profile_name, region_name=region_name)
+    """SecureStringを復号して取り出す。呼び出し側で表示しないこと。
+
+    profile_name が None なら既定の認証情報チェーンを使う。CIやECSタスクのように
+    ロール/環境変数で認証している環境ではプロファイルが存在しないため。
+    手元での既定プロファイルは environments.py が AWS_PROFILE で与える。
+    """
+    session = boto3.Session(profile_name=profile_name or None,
+                            region_name=region_name)
     ssm = session.client('ssm')
     return ssm.get_parameter(Name=name, WithDecryption=True)['Parameter']['Value']
 
@@ -84,7 +90,7 @@ def _redact(message, uri):
     return message
 
 
-def check(parameter_name, profile='asobann', region=environments.REGION):
+def check(parameter_name, profile=None, region=environments.REGION):
     """検証して結果を表示し、認証が通ったかを返す。"""
     uri = get_parameter(profile, region, parameter_name)
     info = describe_uri(uri)
@@ -111,7 +117,9 @@ def main():
                         help='環境名。パラメータ名は environments.py から引く')
     target.add_argument('--parameter-name',
                         help='SSMパラメータ名。例: /asobann/prod/mongodb_uri')
-    parser.add_argument('--profile', default='asobann', help='AWSプロファイル')
+    parser.add_argument('--profile',
+                        help='AWSプロファイル。省略時は既定の認証情報チェーン'
+                             '（手元では environments.py が AWS_PROFILE を与える）')
     parser.add_argument('--region', default=environments.REGION, help='AWSリージョン')
     args = parser.parse_args()
 
