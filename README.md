@@ -12,7 +12,7 @@ Deploy [asobann](https://github.com/yattom/asobann_app) to AWS ECS with CloudFor
 
 ## Prerequisite
 
-- Python >= 3.6 and pip is installed.
+- Python >= 3.12 and [uv](https://docs.astral.sh/uv/) are installed.  Run `uv sync` to set up this repository's own tools.
 - AWS CLI installed and set up.
 - node >= v14 is installed.
 - Checked out asobann ```https://github.com/yattom/asobann_app``` already.

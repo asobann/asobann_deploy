@@ -1,1 +1,3 @@
 tests/deployment_config_local.py
+.venv/
+__pycache__/
