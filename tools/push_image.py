@@ -53,7 +53,7 @@ def main():
 
     digest = subprocess.run(
         ['aws', 'ecr', 'describe-images', '--repository-name', environments.REPO,
-         '--image-ids', f'imageTag={tag}',
+         '--image-ids', f'imageTag={tag}', '--region', environments.REGION,
          '--query', 'imageDetails[0].imageDigest', '--output', 'text'],
         capture_output=True, text=True, check=True).stdout.strip()
 
