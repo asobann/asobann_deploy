@@ -1,0 +1,23 @@
+# 依存管理は uv。uv.lock が唯一の正。
+#
+# asobann_app と asobann_deploy で pipenv / uv が混在していると、手順書が
+# リポジトリごとに分岐して事故のもとになるため揃える。
+# バージョンは asobann_app 側と合わせてある（selenium 4.46.0 / pytest 9.1.1）。
+
+[project]
+name = "asobann-deploy"
+version = "0.1.0"
+description = "asobann を AWS へデプロイするための CloudFormation テンプレートと運用ツール"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+# tests/test_alive.py（デプロイ後の疎通確認）が使う。
+dev = [
+    "selenium==4.46.0",
+    "pytest==9.1.1",
+]
+
+[tool.uv]
+# 供給網攻撃の窓を避けるため、公開直後のリリースは取らない
+exclude-newer = "2 days"
