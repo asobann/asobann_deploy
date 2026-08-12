@@ -11,11 +11,10 @@ scheme / ユーザ名 / ホスト / DB名 / クエリと、パスワードの長
 落とすため。
 
 使い方:
+    uv run python tools/check_mongodb_uri.py --env prod
     uv run python tools/check_mongodb_uri.py --parameter-name /asobann/prod/mongodb_uri
 
-パラメータ名を引数で受け取るのは、環境ごとの定義を持たないため。環境と
-パラメータ名の対応は呼び出し側（devenv の invoke_tasks/deploy.py の
-ENVIRONMENTS）が唯一の正で、ここに書くと二重管理になる。
+環境とパラメータ名の対応は environments.py が唯一の正。
 
 終了コード: 0 = 認証が通った / 1 = 通らなかった
 """
@@ -26,6 +25,8 @@ from urllib.parse import urlsplit
 
 import boto3
 from pymongo import MongoClient
+
+import environments
 
 ALPHANUMERIC = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
 
@@ -83,18 +84,12 @@ def _redact(message, uri):
     return message
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--parameter-name', required=True,
-                        help='SSMパラメータ名。例: /asobann/prod/mongodb_uri')
-    parser.add_argument('--profile', default='asobann', help='AWSプロファイル')
-    parser.add_argument('--region', default='us-east-1', help='AWSリージョン')
-    args = parser.parse_args()
-
-    uri = get_parameter(args.profile, args.region, args.parameter_name)
+def check(parameter_name, profile='asobann', region=environments.REGION):
+    """検証して結果を表示し、認証が通ったかを返す。"""
+    uri = get_parameter(profile, region, parameter_name)
     info = describe_uri(uri)
 
-    print(args.parameter_name)
+    print(parameter_name)
     print(f'  scheme  : {info["scheme"]}')
     print(f'  user    : {info["username"]}')
     print(f'  host    : {info["host"]}')
@@ -106,8 +101,23 @@ def main():
 
     ok, detail = check_auth(uri)
     print(f'  接続    : {"OK" if ok else "NG"} ({detail})')
+    return ok
 
-    return 0 if ok else 1
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument('--env', choices=sorted(environments.ENVIRONMENTS),
+                        help='環境名。パラメータ名は environments.py から引く')
+    target.add_argument('--parameter-name',
+                        help='SSMパラメータ名。例: /asobann/prod/mongodb_uri')
+    parser.add_argument('--profile', default='asobann', help='AWSプロファイル')
+    parser.add_argument('--region', default=environments.REGION, help='AWSリージョン')
+    args = parser.parse_args()
+
+    name = (args.parameter_name if args.parameter_name
+            else environments.get(args.env)['mongodb_uri_parameter_name'])
+    return 0 if check(name, args.profile, args.region) else 1
 
 
 if __name__ == '__main__':
