@@ -14,10 +14,17 @@ AWSアカウントIDは書かない。実行時に sts get-caller-identity で�
 """
 
 import functools
+import os
 import subprocess
 
 REGION = 'us-east-1'
 REPO = 'asobann_aws'
+
+# 既定のプロファイルは旧本番アカウントを指している。プロファイルを指定し忘れると
+# 別アカウントに向かうので、ここで既定値を入れる。
+# CIではプロファイルではなくロールを使うため、AWS_PROFILE= と明示的に空を渡した
+# 場合はそれを尊重する（setdefaultはキーが存在すれば上書きしない）。
+os.environ.setdefault('AWS_PROFILE', 'asobann')
 
 # デプロイ毎に人間が思い出して打つのをやめ、環境ごとの固定値をコードに置く。
 # 変更履歴はgit logで追える。2026-08-11、GoogleAnalyticsIdをうっかり空のまま
@@ -74,3 +81,11 @@ def image_uri(image_tag):
 
 def certificate_arn(env):
     return f'arn:aws:acm:{REGION}:{account_id()}:certificate/{get(env)["certificate_id"]}'
+
+
+def image_exists_in_ecr(image_tag):
+    """そのタグのイメージがECRにあるか。"""
+    return subprocess.run(
+        ['aws', 'ecr', 'describe-images', '--repository-name', REPO,
+         '--image-ids', f'imageTag={image_tag}', '--region', REGION],
+        capture_output=True).returncode == 0
