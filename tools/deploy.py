@@ -16,6 +16,7 @@ MinimumHealthyPercent: 0 のため復帰先が無くなり本番が停止する
 """
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -65,6 +66,20 @@ def main():
     args = parser.parse_args()
 
     p = environments.get(args.env)
+
+    # デプロイ前にECRにイメージがあることを確かめる。CloudFormationの更新は
+    # イメージが無くても成功し、タスクがpullする段で初めて落ちる。そのとき
+    # MinimumHealthyPercent: 0 のため古いタスクは既に止まっており、復帰先が無い。
+    #
+    # アカウントIDを実行時に取るようにした結果、プロファイルの取り違えは
+    # 「別アカウントのレジストリを見る」形で現れる。そのアカウントには
+    # このタグが無いので、このチェックがそこでも効く。
+    if not environments.image_exists_in_ecr(args.image_tag):
+        print(f'ECRに {environments.image_uri(args.image_tag)} が無い。', file=sys.stderr)
+        print(f'先に push_image.py で上げること。'
+              f'（アカウントは {environments.account_id()} / '
+              f'AWS_PROFILE={os.environ.get("AWS_PROFILE", "(未設定)")}）', file=sys.stderr)
+        return 1
 
     if not args.skip_mongodb_check:
         if not check_mongodb_uri.check(p['mongodb_uri_parameter_name']):
