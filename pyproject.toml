@@ -9,7 +9,14 @@ name = "asobann-deploy"
 version = "0.1.0"
 description = "asobann を AWS へデプロイするための CloudFormation テンプレートと運用ツール"
 requires-python = ">=3.12"
-dependencies = []
+# tools/ の運用スクリプトが使う。
+# botocore[crt] は、プロファイル asobann（SSO）の credential provider に要る。
+# 無いと boto3 1.43 以降で MissingDependencyException になる。
+dependencies = [
+    "boto3==1.43.66",
+    "botocore[crt]==1.43.66",
+    "pymongo==4.17.0",
+]
 
 [dependency-groups]
 # tests/test_alive.py（デプロイ後の疎通確認）が使う。
