@@ -21,7 +21,7 @@ scheme / ユーザ名 / ホスト / DB名 / クエリと、パスワードの長
 
 import argparse
 import sys
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 import boto3
 from pymongo import MongoClient
@@ -83,10 +83,17 @@ def check_auth(uri, timeout_ms=10000):
 
 
 def _redact(message, uri):
-    """例外メッセージにパスワードが混ざっていても外に出さない。"""
+    """例外メッセージにパスワードが混ざっていても外に出さない。
+
+    urlsplit(uri).password はパーセントデコードせず、URIに書かれたままの文字列を
+    返す。一方 pymongo は接続時にデコードするので、例外メッセージにはデコード後の
+    値が現れうる。両方を伏字にする。
+    """
     password = urlsplit(uri).password
-    if password:
-        message = message.replace(password, '***')
+    if not password:
+        return message
+    for form in {password, unquote(password)}:
+        message = message.replace(form, '***')
     return message
 
 

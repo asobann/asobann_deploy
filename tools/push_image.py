@@ -30,9 +30,12 @@ def main():
     parser.add_argument('image', help='ローカルのイメージ参照。例: asobann_aws:31ed4ac')
     args = parser.parse_args()
 
-    if ':' not in args.image:
+    # 最後の ':' が最後の '/' より後にあるときだけタグとみなす。
+    # localhost:5000/repo のような「レジストリのポート指定はあるがタグが無い」
+    # 参照を、タグ 5000/repo と誤読しないため。
+    name, sep, tag = args.image.rpartition(':')
+    if not sep or '/' in tag:
         raise SystemExit(f'タグを含めて指定すること: {args.image}')
-    tag = args.image.rsplit(':', 1)[1]
 
     if tag.endswith('-dirty'):
         # 未コミットの変更を含むイメージは再現できない。手元での確認には使えるが、

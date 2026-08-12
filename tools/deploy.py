@@ -79,7 +79,9 @@ def main():
     # このタグが無いので、このチェックがそこでも効く。
     if not environments.image_exists_in_ecr(args.image_tag):
         print(f'ECRに {environments.image_uri(args.image_tag)} が無い。', file=sys.stderr)
-        print(f'先に push_image.py で上げること。'
+        print(f'先に asobann_deploy で '
+              f'`uv run python tools/push_image.py '
+              f'{environments.REPO}:{args.image_tag}` を実行すること。'
               f'（アカウントは {environments.account_id()} / '
               f'AWS_PROFILE={os.environ.get("AWS_PROFILE", "(未設定)")}）', file=sys.stderr)
         return 1
