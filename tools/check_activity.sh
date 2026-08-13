@@ -25,7 +25,10 @@ MINUTES=${1:-30}
 
 # ?"..." はOR条件。利用者の操作としてログに現れるものを列挙する。
 # mouse movement はログに出ないため対象外。
-pattern='?"come by table" ?"set player" ?"update single component" ?"update many component" ?"add component" ?"add kit" ?"remove component" ?"remove kit" ?"sync with me"'
+# update single component / remove component / remove kit はクライアントが
+# 送らない死んだイベントなので対象から外している（asobann_docs
+# worklogs/20260813.update-path-review.WIP）。
+pattern='?"come by table" ?"set player" ?"update many component" ?"add component" ?"add kit" ?"sync with me"'
 
 # 問い合わせは1回にまとめる。判定用と「直近の操作はいつか」用に別々に叩くと、
 # filter-log-events が該当0件のページを返すことがあり、同じ条件なのに
