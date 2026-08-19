@@ -490,6 +490,9 @@ Resources:
       Cpu: !Ref RedisTaskCpu
       Memory: !Ref RedisTaskMemory
       ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      # ECS Service DiscoveryはtaskRoleArnが無いとサービス作成自体を拒否する
+      # (Redisコンテナ自身はAWS APIを呼ばないが、appタスクと同じTaskRoleを流用する)
+      TaskRoleArn: !GetAtt TaskRole.Arn
       ContainerDefinitions:
         - Name: redis
           Image: redis:7-alpine
