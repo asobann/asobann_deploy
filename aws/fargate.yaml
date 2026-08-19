@@ -172,7 +172,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Condition: UseRedis
     Properties:
-      GroupDescription: asobann redis (R5 水平スケーリング実測用)
+      GroupDescription: asobann redis (R5 horizontal scaling measurement)
       VpcId: !Ref Vpc
       SecurityGroupIngress:
         - IpProtocol: tcp
