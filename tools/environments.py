@@ -52,9 +52,15 @@ ENVIRONMENTS = {
         # 較正用のstagingにはGAタグを出さない(本番の計測を汚さない)。
         'google_analytics_id': '',
         'certificate_id': '0767b27e-9973-433c-8a75-11415fd6bc61',
+        # R5a計測(水平スケーリング): CPU256のタスクを2つ+Redis1タスクで、R3(CPU512×1)と
+        # 同じ総0.5vCPUを水平に分けた場合と比較する。次にapp_task_count=4にしてR5bとし、
+        # R4(CPU1024×1、総1.0vCPU)と比較する。
         'task_cpu': '256',
         'task_memory': '512',
-        'app_task_count': '1',
+        'app_task_count': '2',
+        'redis_task_count': '1',
+        'redis_task_cpu': '256',
+        'redis_task_memory': '512',
     },
     'prod': {
         'stack_name': 'asobann-fargate',

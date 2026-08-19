@@ -49,6 +49,27 @@ Parameters:
     Type: String
     Default: ''
 
+  RedisTaskCount:
+    Type: Number
+    Default: 0
+    AllowedValues: [0, 1]
+    Description: >
+      0ならRedis関連リソース一式を作らない（ADR 0004の既定）。1でRedisタスクを1つ立て、
+      appタスクにREDIS_URIを渡してsocket.ioのclient_managerをAsyncRedisManagerにする。
+      AppTaskCountを2以上にするときは1にすること（水平スケーリングの実測用、R5）
+
+  RedisTaskCpu:
+    Type: String
+    Default: 256
+
+  RedisTaskMemory:
+    Type: String
+    Default: 512
+
+
+Conditions:
+  UseRedis: !Equals [!Ref RedisTaskCount, 1]
+
 
 Resources:
 
@@ -146,6 +167,19 @@ Resources:
           ToPort: 5000
           SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
           Description: from load balancer only
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: UseRedis
+    Properties:
+      GroupDescription: asobann redis (R5 水平スケーリング実測用)
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref TaskSecurityGroup
+          Description: from app tasks only
 
   # ---------------------------------------------------------------- ロードバランサ
 
@@ -372,6 +406,12 @@ Resources:
               Value: ''
             - Name: AWS_SECRET
               Value: ''
+            # R5(水平スケーリング実測)用。UseRedisが偽なら空文字を渡し、アプリ側の
+            # `if app.config['REDIS_URI']:` で無効化される（AsyncRedisManagerを使わず単一
+            # タスク相当の動作のまま）。redis+srv:// はアプリ側のresolve_redis_srvが
+            # Cloud MapのSRVレコード(_redis._tcp.<namespace>)を解決する前提の形式
+            - Name: REDIS_URI
+              Value: !If [UseRedis, !Sub 'redis+srv://${AWS::StackName}.local', '']
           Secrets:
             - Name: MONGODB_URI
               ValueFrom: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${MongoDbUriParameterName}
@@ -409,6 +449,82 @@ Resources:
         - ContainerName: app
           ContainerPort: 5000
           TargetGroupArn: !Ref TargetGroup
+
+  # ---------------------------------------------------------------- Redis (R5 水平スケーリング実測用)
+  # ADR 0004は「1タスクならRedis不要」としてRedisを撤去した。AppTaskCountを2以上にする
+  # 場合のみ、socket.ioのイベントをタスク間でpub/subするために必要になる。
+  # ElastiCacheではなくECSタスクとして自前運用する理由（2026-08-19決定、
+  # asobann_docsのworklog参照）: 常設しないstagingではElastiCache Serverlessの
+  # 最低課金が効いてしまうこと、サイズ変更が速いこと、redis-cli infoで直接
+  # スループット・データ量が採れること。
+
+  RedisNamespace:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Condition: UseRedis
+    Properties:
+      Name: !Sub ${AWS::StackName}.local
+      Vpc: !Ref Vpc
+
+  RedisDiscoveryService:
+    Type: AWS::ServiceDiscovery::Service
+    Condition: UseRedis
+    Properties:
+      Name: redis
+      NamespaceId: !Ref RedisNamespace
+      DnsConfig:
+        DnsRecords:
+          - Type: SRV
+            TTL: 10
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+
+  RedisTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Condition: UseRedis
+    Properties:
+      Family: !Sub ${AWS::StackName}-redis
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: !Ref RedisTaskCpu
+      Memory: !Ref RedisTaskMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: redis
+          Image: redis:7-alpine
+          Essential: true
+          PortMappings:
+            - ContainerPort: 6379
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: redis
+
+  RedisService:
+    Type: AWS::ECS::Service
+    Condition: UseRedis
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: FARGATE
+      PlatformVersion: LATEST
+      DesiredCount: 1
+      TaskDefinition: !Ref RedisTaskDefinition
+      EnableExecuteCommand: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          # NAT Gatewayが無いため、Docker Hubからredis:7-alpineを引くにはIGW経由が要る
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref PublicSubnet1
+            - !Ref PublicSubnet2
+          SecurityGroups:
+            - !Ref RedisSecurityGroup
+      ServiceRegistries:
+        - RegistryArn: !GetAtt RedisDiscoveryService.Arn
 
 
 Outputs:

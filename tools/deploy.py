@@ -38,6 +38,11 @@ def build_command(env, image_tag, no_execute_changeset=False):
         f'AppTaskCount={p["app_task_count"]}',
         f'CertificateArn={environments.certificate_arn(env)}',
         f'GoogleAnalyticsId={p["google_analytics_id"]}',
+        # 既定は0（ADR 0004: 1タスクならRedis不要）。R5(水平スケーリング実測)でのみ
+        # environments.pyのenv dictにredis_task_*キーを足して1にする
+        f'RedisTaskCount={p.get("redis_task_count", 0)}',
+        f'RedisTaskCpu={p.get("redis_task_cpu", 256)}',
+        f'RedisTaskMemory={p.get("redis_task_memory", 512)}',
     ]
     cmd = [
         'aws', 'cloudformation', 'deploy',
