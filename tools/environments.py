@@ -52,8 +52,10 @@ ENVIRONMENTS = {
         # 較正用のstagingにはGAタグを出さない(本番の計測を汚さない)。
         'google_analytics_id': '',
         'certificate_id': '0767b27e-9973-433c-8a75-11415fd6bc61',
-        'task_cpu': '256',
-        'task_memory': '512',
+        # R3計測(CPU512): Fargateは512 CPUに512MBを組み合わせられないため、
+        # メモリも1024に上げる(負荷が18.4%で一定だった=メモリ不足が理由ではない)。
+        'task_cpu': '512',
+        'task_memory': '1024',
         'app_task_count': '1',
     },
     'prod': {
