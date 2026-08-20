@@ -469,7 +469,11 @@ Resources:
     Type: AWS::ServiceDiscovery::Service
     Condition: UseRedis
     Properties:
-      Name: redis
+      # Cloud MapはSRVレコードでも名前をそのまま "<Name>.<namespace>" にするだけで、
+      # RFC 2782 の "_service._proto.name" 形式にはしてくれない。アプリ側の
+      # resolve_redis_srv() はその形式で "_redis._tcp." + host を引く前提の実装のため、
+      # サービス名自体を "_redis._tcp" というリテラル文字列にして帳尻を合わせる。
+      Name: _redis._tcp
       NamespaceId: !Ref RedisNamespace
       DnsConfig:
         DnsRecords:
