@@ -52,8 +52,12 @@ ENVIRONMENTS = {
         # 較正用のstagingにはGAタグを出さない(本番の計測を汚さない)。
         'google_analytics_id': '',
         'certificate_id': '0767b27e-9973-433c-8a75-11415fd6bc61',
-        'task_cpu': '256',
-        'task_memory': '512',
+        # 2026-08-20、負荷試験の結果CPU512を採用（ADR 0015）。24人程度までなら
+        # p95 1.7秒・ロス率0.8%で安定し、$18/月。CPU1024は倍のコストで買える余裕が
+        # 現状の利用実態に見合わないと判断した。メモリ1024はFargateの組み合わせ制約
+        # （512 CPUには最低1024MBが必要）によるもので、メモリ不足が理由ではない。
+        'task_cpu': '512',
+        'task_memory': '1024',
         'app_task_count': '1',
     },
     'prod': {
@@ -65,8 +69,9 @@ ENVIRONMENTS = {
         # 2026-08-11に発見し、GA4プロパティ(analytics.google.com)から取得し直した。
         'google_analytics_id': 'G-GRZ5YJ1JCF',
         'certificate_id': '0767b27e-9973-433c-8a75-11415fd6bc61',
-        'task_cpu': '256',
-        'task_memory': '512',
+        # 2026-08-20、負荷試験の結果CPU512を採用（ADR 0015）。詳細はstaging側のコメント参照。
+        'task_cpu': '512',
+        'task_memory': '1024',
         'app_task_count': '1',
     },
 }
