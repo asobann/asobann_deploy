@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  asobann.yattom.jp のDNS。2026-08-20に旧アカウント550251267268から移した。
+
+  本番(asobann-fargate)とstaging(asobann-staging)でホストゾーンを共有するため、
+  どちらのアプリスタックにも入れず独立させてある。旧環境では apex のAレコードが
+  asobann-prod の LoadBalancer ネストスタックの持ち物になっており、旧環境を撤去
+  しようとすると本番ドメインが道連れになる状態だった。同じ轍を踏まないための分離。
+
+  親ドメイン yattom.jp はAWSの外にある。レジストラ兼DNSホストは Squarespace
+  (旧Google Domains。ネームサーバは ns-cloud-a1..a4.googledomains.com のまま)。
+  このゾーンを作り直してNSが変わったら、Squarespaceの管理画面で yattom.jp の
+  asobann NSレコードを手で差し替えないとドメイン全体が引けなくなる。
+  HostedZone に Retain を付けてあるのはそのため。
+
+Parameters:
+  ProdStackName:
+    Type: String
+    Default: asobann-fargate
+    Description: 本番のALBを持つスタック名。Outputsをここから取り込む
+
+  StagingStackName:
+    Type: String
+    Default: asobann-staging
+    Description: stagingのALBを持つスタック名
+
+  AcmValidationRecordName:
+    Type: String
+    Default: _b536a27881f6b7986cdb9ab6c3c30ea2.asobann.yattom.jp.
+    Description: >
+      ACM証明書(environments.py の certificate_id)のDNS検証用CNAME名。
+      これが引けないと証明書の自動更新が失敗する
+
+  AcmValidationRecordValue:
+    Type: String
+    Default: _f8ce04c42cf4894a5f07ade3ecc2caea.jkddzztszm.acm-validations.aws.
+    Description: 上のCNAMEの値
+
+Resources:
+  # ゾーンを作り直すとNSが変わり、親ゾーン(yattom.jp / Squarespace)側の
+  # 委譲レコードを人手で直すまでドメイン全体が引けなくなる。だから置換も削除も
+  # させない。
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: asobann.yattom.jp
+      HostedZoneConfig:
+        Comment: asobann 本番DNS
+
+  # 以下のレコードは DeletionPolicy のみ Retain にしてある。スタックを消しても
+  # サイトが落ちないようにするのが目的。UpdateReplacePolicy は既定(Delete)のまま。
+  # レコードの置換時に旧レコードを残すと同名レコードが衝突するため。
+  ApexRecord:
+    Type: AWS::Route53::RecordSet
+    DeletionPolicy: Retain
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: asobann.yattom.jp.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerDnsName"
+        HostedZoneId:
+          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerHostedZoneId"
+        EvaluateTargetHealth: false
+
+  NextRecord:
+    Type: AWS::Route53::RecordSet
+    DeletionPolicy: Retain
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: next.asobann.yattom.jp.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerDnsName"
+        HostedZoneId:
+          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerHostedZoneId"
+        EvaluateTargetHealth: false
+
+  StagingRecord:
+    Type: AWS::Route53::RecordSet
+    DeletionPolicy: Retain
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: staging.asobann.yattom.jp.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::ImportValue: !Sub "${StagingStackName}-LoadBalancerDnsName"
+        HostedZoneId:
+          Fn::ImportValue: !Sub "${StagingStackName}-LoadBalancerHostedZoneId"
+        EvaluateTargetHealth: false
+
+  AcmValidationRecord:
+    Type: AWS::Route53::RecordSet
+    DeletionPolicy: Retain
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Ref AcmValidationRecordName
+      Type: CNAME
+      TTL: 300
+      ResourceRecords:
+        - !Ref AcmValidationRecordValue
+
+Outputs:
+  HostedZoneId:
+    Value: !Ref HostedZone
+
+  NameServers:
+    Description: >
+      親ゾーン yattom.jp (Squarespace) の asobann NSレコードに設定する値。
+      ここを差し替えるまで、このゾーンは誰からも参照されない
+    Value: !Join [", ", !GetAtt HostedZone.NameServers]

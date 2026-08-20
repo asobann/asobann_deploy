@@ -412,13 +412,20 @@ Resources:
 
 
 Outputs:
+  # dns.yaml が Fn::ImportValue で取り込む。スタック名を前置するのは、この
+  # テンプレートを本番(asobann-fargate)とstaging(asobann-staging)の両方で
+  # 使っており、Export名はアカウント内で一意でなければならないため。
   LoadBalancerDnsName:
     Description: Route53のALIASレコードの向き先に指定する値
     Value: !GetAtt LoadBalancer.DNSName
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerDnsName"
 
   LoadBalancerHostedZoneId:
     Description: ALIASレコード作成時に必要なホストゾーンID
     Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
+    Export:
+      Name: !Sub "${AWS::StackName}-LoadBalancerHostedZoneId"
 
   ImageBucketName:
     Description: 旧アカウントのバケットから中身を同期する先
