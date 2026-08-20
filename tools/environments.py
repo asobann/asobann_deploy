@@ -52,12 +52,13 @@ ENVIRONMENTS = {
         # 較正用のstagingにはGAタグを出さない(本番の計測を汚さない)。
         'google_analytics_id': '',
         'certificate_id': '0767b27e-9973-433c-8a75-11415fd6bc61',
-        # R5a計測(水平スケーリング): CPU256のタスクを2つ+Redis1タスクで、R3(CPU512×1)と
-        # 同じ総0.5vCPUを水平に分けた場合と比較する。次にapp_task_count=4にしてR5bとし、
-        # R4(CPU1024×1、総1.0vCPU)と比較する。
+        # R5b計測(水平スケーリング): CPU256のタスクを4つ+Redis1タスクで、R4(CPU1024×1)と
+        # 同じ総1.0vCPUを水平に分けた場合と比較する。R5a(app_task_count=2、R3と比較)は
+        # 完了済み: n18の時点でapp CPU平均98.7%・p95 19秒・ロス率29.2%まで崩れ、R3がn24でも
+        # 機能していたのと対照的に明確に劣っていた。
         'task_cpu': '256',
         'task_memory': '512',
-        'app_task_count': '2',
+        'app_task_count': '4',
         'redis_task_count': '1',
         'redis_task_cpu': '256',
         'redis_task_memory': '512',
