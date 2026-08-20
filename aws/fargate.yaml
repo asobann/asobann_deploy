@@ -528,6 +528,8 @@ Resources:
             - !Ref RedisSecurityGroup
       ServiceRegistries:
         - RegistryArn: !GetAtt RedisDiscoveryService.Arn
+          ContainerName: redis
+          ContainerPort: 6379
 
 
 Outputs:
