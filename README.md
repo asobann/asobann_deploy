@@ -40,8 +40,13 @@ uv run python tools/deploy.py --env prod --image-tag <short-sha>
 ```
 
 ワークスペース（devenv）からは `inv build --push` / `inv smoke-test` /
-`inv deploy --env=staging` で同じことができる。複数リポジトリを跨ぐので、入口を
-1つにまとめてあるだけで、中身は上のスクリプト。
+`inv staging-deploy` / `inv deploy --env=prod` で同じことができる。複数リポジトリを
+跨ぐので、入口を1つにまとめてあるだけで、中身は上のスクリプト。
+
+stagingはADR 0009の「必要になったときにスタックを作り、確認が終わったら削除する」の
+対象で、`inv staging-deploy` / `inv staging-teardown`（devenvから）または
+`tools/deploy.py --env staging` / `tools/teardown.py` で往復させる（#180）。
+`inv deploy --env=staging` は使えない。
 
 環境を変えずにパラメータとテンプレートの妥当性だけ確かめたいときは
 `--no-execute-changeset` を付ける（changesetを作るだけで実行しない）。
@@ -52,6 +57,7 @@ uv run python tools/deploy.py --env prod --image-tag <short-sha>
 |---|---|
 | `tools/environments.py` | staging / 本番の定義。**スタック名・ホスト名・CPU/メモリ・証明書ID・SSMパラメータ名の唯一の正** |
 | `tools/deploy.py` | CloudFormationスタックの更新。デプロイ前にMongoDB接続を検証する |
+| `tools/teardown.py` | asobann-stagingスタックとImageBucketの削除（staging専用、既定はdry-run） |
 | `tools/push_image.py` | ビルド済みイメージをECRへpush |
 | `tools/check_mongodb_uri.py` | SSMの接続文字列を検証する。値は表示せず、構造と認証可否だけ出す |
 | `tools/smoke_test_image.sh` | イメージがローカルで起動し応答するか確認する |
