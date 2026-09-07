@@ -4,7 +4,10 @@ Description: >
   asobann on ECS Fargate.
   ADR 0004 に基づき、ECS on EC2 から Fargate へ移行するための構成。
   MongoDB は Atlas を使うため、このスタックはデータストアを持たない（ADR 0003）。
-  Route53レコードとACM証明書は別アカウントのホストゾーンに関わるため、このスタックの外で扱う。
+  ホストゾーンとACM証明書は asobann-dns スタックが持つ（#180）。このスタックは
+  asobann-dns の HostedZoneId をImportValueで参照し、自分のホスト名のAレコードを
+  自分で持つ。ACM証明書自体はCertificateArnパラメータで受け取るだけで、証明書の
+  発行・検証はこのスタックの外で扱う。
 
   デプロイ例（タグはスタック単位で付けると対応リソースへ自動で伝播する）:
     aws cloudformation deploy --template-file aws/fargate.yaml --stack-name asobann-fargate \
