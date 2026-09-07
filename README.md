@@ -45,7 +45,8 @@ uv run python tools/deploy.py --env prod --image-tag <short-sha>
 
 stagingはADR 0009の「必要になったときにスタックを作り、確認が終わったら削除する」の
 対象で、`inv staging-deploy` / `inv staging-teardown`（devenvから）または
-`tools/deploy.py --env staging` / `tools/teardown.py` で往復させる（#180）。
+`uv run python tools/deploy.py --env staging --image-tag <short-sha>` /
+`uv run python tools/teardown.py --execute` で往復させる（#180）。
 `inv deploy --env=staging` は使えない。
 
 環境を変えずにパラメータとテンプレートの妥当性だけ確かめたいときは
