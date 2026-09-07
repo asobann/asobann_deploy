@@ -33,11 +33,16 @@ def get_image_bucket_name(stack_name):
          '--stack-name', stack_name, '--region', environments.REGION,
          '--query', "Stacks[0].Outputs[?OutputKey=='ImageBucketName'].OutputValue",
          '--output', 'text'],
-        capture_output=True, text=True, check=True)
+        capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(f'{stack_name} の情報が取れない（スタックが存在しない可能性がある）:\n'
+                          f'{result.stderr.strip()}')
     name = result.stdout.strip()
-    if not name:
+    # クエリがOutputsを1件も返さないと、--output text は空文字ではなく
+    # 文字列 "None" を返す。ImageBucketName が無い場合はここで弾く。
+    if not name or name == 'None':
         raise SystemExit(f'{stack_name} から ImageBucketName が取れない。'
-                          f'スタックが存在しないか、Output名が変わっていないか確認すること。')
+                          f'Output名が変わっていないか確認すること。')
     return name
 
 
@@ -53,6 +58,11 @@ def main():
     args = parser.parse_args()
 
     stack_name = environments.get(ENV)['stack_name']
+    # 破壊的操作なので、environments.py側の設定ミスで想定外のスタックを
+    # 向いていないか、実行前に確かめる。
+    if stack_name != 'asobann-staging':
+        raise SystemExit(f'想定外のスタック名: {stack_name}（asobann-stagingのはず）。'
+                          f'environments.py の設定を確認すること。')
 
     print(f'=== {stack_name} を削除する ===')
 
@@ -73,8 +83,8 @@ def main():
          '--stack-name', stack_name, '--region', environments.REGION])
     print(f'{stack_name} を削除した')
 
-    run(['aws', 's3', 'rm', f's3://{bucket}', '--recursive'])
-    run(['aws', 's3', 'rb', f's3://{bucket}'])
+    run(['aws', 's3', 'rm', f's3://{bucket}', '--recursive', '--region', environments.REGION])
+    run(['aws', 's3', 'rb', f's3://{bucket}', '--region', environments.REGION])
     print(f'{bucket} を削除した')
 
     return 0
