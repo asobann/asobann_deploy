@@ -412,9 +412,10 @@ Resources:
 
 
 Outputs:
-  # dns.yaml が Fn::ImportValue で取り込む。スタック名を前置するのは、この
-  # テンプレートを本番(asobann-fargate)とstaging(asobann-staging)の両方で
-  # 使っており、Export名はアカウント内で一意でなければならないため。
+  # Route53のALIASレコードから参照するためのExport(現時点でimport元はない)。
+  # スタック名を前置するのは、このテンプレートを本番(asobann-fargate)と
+  # staging(asobann-staging)の両方で使っており、Export名はアカウント内で
+  # 一意でなければならないため。
   LoadBalancerDnsName:
     Description: Route53のALIASレコードの向き先に指定する値
     Value: !GetAtt LoadBalancer.DNSName
