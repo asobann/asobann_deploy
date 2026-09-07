@@ -14,16 +14,6 @@ Description: >
   HostedZone に Retain を付けてあるのはそのため。
 
 Parameters:
-  ProdStackName:
-    Type: String
-    Default: asobann-fargate
-    Description: 本番のALBを持つスタック名。Outputsをここから取り込む
-
-  StagingStackName:
-    Type: String
-    Default: asobann-staging
-    Description: stagingのALBを持つスタック名
-
   AcmValidationRecordName:
     Type: String
     Default: _b536a27881f6b7986cdb9ab6c3c30ea2.asobann.yattom.jp.
@@ -49,51 +39,6 @@ Resources:
       HostedZoneConfig:
         Comment: asobann 本番DNS
 
-  # 以下のレコードは DeletionPolicy のみ Retain にしてある。スタックを消しても
-  # サイトが落ちないようにするのが目的。UpdateReplacePolicy は既定(Delete)のまま。
-  # レコードの置換時に旧レコードを残すと同名レコードが衝突するため。
-  ApexRecord:
-    Type: AWS::Route53::RecordSet
-    DeletionPolicy: Retain
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: asobann.yattom.jp.
-      Type: A
-      AliasTarget:
-        DNSName:
-          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerDnsName"
-        HostedZoneId:
-          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerHostedZoneId"
-        EvaluateTargetHealth: false
-
-  NextRecord:
-    Type: AWS::Route53::RecordSet
-    DeletionPolicy: Retain
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: next.asobann.yattom.jp.
-      Type: A
-      AliasTarget:
-        DNSName:
-          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerDnsName"
-        HostedZoneId:
-          Fn::ImportValue: !Sub "${ProdStackName}-LoadBalancerHostedZoneId"
-        EvaluateTargetHealth: false
-
-  StagingRecord:
-    Type: AWS::Route53::RecordSet
-    DeletionPolicy: Retain
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: staging.asobann.yattom.jp.
-      Type: A
-      AliasTarget:
-        DNSName:
-          Fn::ImportValue: !Sub "${StagingStackName}-LoadBalancerDnsName"
-        HostedZoneId:
-          Fn::ImportValue: !Sub "${StagingStackName}-LoadBalancerHostedZoneId"
-        EvaluateTargetHealth: false
-
   AcmValidationRecord:
     Type: AWS::Route53::RecordSet
     DeletionPolicy: Retain
@@ -108,6 +53,8 @@ Resources:
 Outputs:
   HostedZoneId:
     Value: !Ref HostedZone
+    Export:
+      Name: asobann-dns-HostedZoneId
 
   NameServers:
     Description: >
