@@ -228,7 +228,7 @@ Resources:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneId: !ImportValue asobann-dns-HostedZoneId
-      Name: !Sub "${PublicHostname}."
+      Name: !Ref PublicHostname
       Type: A
       AliasTarget:
         DNSName: !GetAtt LoadBalancer.DNSName
