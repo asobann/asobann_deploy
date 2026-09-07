@@ -429,11 +429,11 @@ Resources:
 
 Outputs:
   LoadBalancerDnsName:
-    Description: ALB自体のDNS名。DnsRecordがALIASで参照する
+    Description: ALBのDNS名。DnsRecordのAliasTargetに設定する値と同じ
     Value: !GetAtt LoadBalancer.DNSName
 
   LoadBalancerHostedZoneId:
-    Description: ALB自体のホストゾーンID。DnsRecordがALIASで参照する
+    Description: ALBのホストゾーンID。DnsRecordのAliasTargetに設定する値と同じ
     Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
 
   ImageBucketName:
