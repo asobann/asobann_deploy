@@ -222,6 +222,19 @@ Resources:
         - Type: forward
           TargetGroupArn: !Ref TargetGroup
 
+  # DeletionPolicyを付けない(既定のDelete)。スタックを消せばレコードも消える、
+  # というのが#180の設計そのもの。ホストゾーンはasobann-dns側でRetainしてある。
+  DnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue asobann-dns-HostedZoneId
+      Name: !Sub "${PublicHostname}."
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt LoadBalancer.DNSName
+        HostedZoneId: !GetAtt LoadBalancer.CanonicalHostedZoneID
+        EvaluateTargetHealth: false
+
   # ---------------------------------------------------------------- 画像アップロード先
   # 2023年4月以降に作られるバケットは既定でACLが無効。アプリは public-read ACL を
   # 付けてアップロードするため、明示的にACLを有効化する必要がある。
@@ -412,21 +425,13 @@ Resources:
 
 
 Outputs:
-  # Route53のALIASレコードから参照するためのExport(現時点でimport元はない)。
-  # スタック名を前置するのは、このテンプレートを本番(asobann-fargate)と
-  # staging(asobann-staging)の両方で使っており、Export名はアカウント内で
-  # 一意でなければならないため。
   LoadBalancerDnsName:
-    Description: Route53のALIASレコードの向き先に指定する値
+    Description: ALB自体のDNS名。DnsRecordがALIASで参照する
     Value: !GetAtt LoadBalancer.DNSName
-    Export:
-      Name: !Sub "${AWS::StackName}-LoadBalancerDnsName"
 
   LoadBalancerHostedZoneId:
-    Description: ALIASレコード作成時に必要なホストゾーンID
+    Description: ALB自体のホストゾーンID。DnsRecordがALIASで参照する
     Value: !GetAtt LoadBalancer.CanonicalHostedZoneID
-    Export:
-      Name: !Sub "${AWS::StackName}-LoadBalancerHostedZoneId"
 
   ImageBucketName:
     Description: 旧アカウントのバケットから中身を同期する先
