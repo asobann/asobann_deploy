@@ -10,9 +10,9 @@ MinimumHealthyPercent: 0 のため復帰先が無くなり本番が停止する
 （2026-08-09に13分停止した）。
 
 使い方:
-    uv run python tools/deploy.py --env staging --image-tag 31ed4ac
-    uv run python tools/deploy.py --env prod --image-tag 31ed4ac
-    uv run python tools/deploy.py --env staging --image-tag 31ed4ac --no-execute-changeset
+    AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag 31ed4ac
+    AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env prod --image-tag 31ed4ac
+    AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag 31ed4ac --no-execute-changeset
 """
 
 import argparse

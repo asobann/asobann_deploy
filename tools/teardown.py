@@ -14,8 +14,8 @@ stagingのアップロード画像は捨ててよいデータという前提（#
 実際に削除するには --execute を付けること。
 
 使い方:
-    uv run python tools/teardown.py            # dry-run。何も削除しない
-    uv run python tools/teardown.py --execute  # 実際に削除する
+    AWS_PROFILE=asobann-readonly uv run python tools/teardown.py            # dry-run。何も削除しない
+    AWS_PROFILE=asobann-admin uv run python tools/teardown.py --execute     # 実際に削除する
 """
 
 import argparse

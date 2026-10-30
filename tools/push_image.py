@@ -8,7 +8,7 @@ asobann_app の資産だけで完結し認証情報を要らないのに対し�
 レジストリURIの組み立ては environments.py が唯一の正。ここでは持たない。
 
 使い方:
-    uv run python tools/push_image.py asobann_aws:31ed4ac
+    AWS_PROFILE=asobann-admin uv run python tools/push_image.py asobann_aws:31ed4ac
 
 出力の最後に image URI と digest を表示する。デプロイにはこのタグを渡す。
 """

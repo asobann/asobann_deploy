@@ -47,8 +47,8 @@ AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env prod --image-tag <
 
 stagingはADR 0009の「必要になったときにスタックを作り、確認が終わったら削除する」の
 対象で、`inv staging-deploy` / `inv staging-teardown`（devenvから）または
-`uv run python tools/deploy.py --env staging --image-tag <short-sha>` /
-`uv run python tools/teardown.py --execute` で往復させる（#180）。
+`AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag <short-sha>` /
+`AWS_PROFILE=asobann-admin uv run python tools/teardown.py --execute` で往復させる（#180）。
 `inv deploy --env=staging` は使えない。
 
 環境を変えずにパラメータとテンプレートの妥当性だけ確かめたいときは
