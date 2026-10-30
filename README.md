@@ -10,7 +10,8 @@ asobann_app 側の ADR（`docs/adr/`）を参照。
 ## 前提
 
 - Python >= 3.12 と [uv](https://docs.astral.sh/uv/)。このリポジトリのツール用に `uv sync` を実行しておく
-- AWS CLI（プロファイル `asobann`）
+- AWS CLI。プロファイルは毎回 `AWS_PROFILE` で明示する。参照だけなら `asobann-readonly`、
+  push・デプロイ・削除など変更を伴う操作は `asobann-admin`
 - docker
 - asobann_app をチェックアウト済み（イメージのビルドはあちら側で行う）
 
@@ -30,23 +31,24 @@ cd /path/to/asobann_deploy
 ./tools/smoke_test_image.sh asobann_aws:<short-sha>
 
 # ③ ECRへpushする
-uv run python tools/push_image.py asobann_aws:<short-sha>
+AWS_PROFILE=asobann-admin uv run python tools/push_image.py asobann_aws:<short-sha>
 
 # ④ stagingへデプロイして確認する
-uv run python tools/deploy.py --env staging --image-tag <short-sha>
+AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag <short-sha>
 
 # ⑤ 同じタグを本番へ
-uv run python tools/deploy.py --env prod --image-tag <short-sha>
+AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env prod --image-tag <short-sha>
 ```
 
 ワークスペース（devenv）からは `inv build --push` / `inv smoke-test` /
-`inv staging-deploy` / `inv deploy --env=prod` で同じことができる。複数リポジトリを
+`inv staging-deploy` / `inv deploy --env=prod` で同じことができる（`AWS_PROFILE` の
+指定は同じく必要）。複数リポジトリを
 跨ぐので、入口を1つにまとめてあるだけで、中身は上のスクリプト。
 
 stagingはADR 0009の「必要になったときにスタックを作り、確認が終わったら削除する」の
 対象で、`inv staging-deploy` / `inv staging-teardown`（devenvから）または
-`uv run python tools/deploy.py --env staging --image-tag <short-sha>` /
-`uv run python tools/teardown.py --execute` で往復させる（#180）。
+`AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag <short-sha>` /
+`AWS_PROFILE=asobann-admin uv run python tools/teardown.py --execute` で往復させる（#180）。
 `inv deploy --env=staging` は使えない。
 
 環境を変えずにパラメータとテンプレートの妥当性だけ確かめたいときは

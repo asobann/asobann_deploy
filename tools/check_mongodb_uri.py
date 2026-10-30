@@ -11,8 +11,10 @@ scheme / ユーザ名 / ホスト / DB名 / クエリと、パスワードの長
 落とすため。
 
 使い方:
-    uv run python tools/check_mongodb_uri.py --env prod
-    uv run python tools/check_mongodb_uri.py --parameter-name /asobann/prod/mongodb_uri
+    AWS_PROFILE=asobann-admin uv run python tools/check_mongodb_uri.py --env prod
+    AWS_PROFILE=asobann-admin uv run python tools/check_mongodb_uri.py --parameter-name /asobann/prod/mongodb_uri
+
+SecureStringの復号が要るので asobann-admin で実行する（ReadOnlyではできない）。
 
 環境とパラメータ名の対応は environments.py が唯一の正。
 
@@ -36,7 +38,7 @@ def get_parameter(profile_name, region_name, name):
 
     profile_name が None なら既定の認証情報チェーンを使う。CIやECSタスクのように
     ロール/環境変数で認証している環境ではプロファイルが存在しないため。
-    手元での既定プロファイルは environments.py が AWS_PROFILE で与える。
+    手元では AWS_PROFILE を明示する（復号の権限が要るので asobann-admin）。
     """
     session = boto3.Session(profile_name=profile_name or None,
                             region_name=region_name)
@@ -126,7 +128,7 @@ def main():
                         help='SSMパラメータ名。例: /asobann/prod/mongodb_uri')
     parser.add_argument('--profile',
                         help='AWSプロファイル。省略時は既定の認証情報チェーン'
-                             '（手元では environments.py が AWS_PROFILE を与える）')
+                             '（手元では AWS_PROFILE=asobann-admin を付けて実行する）')
     parser.add_argument('--region', default=environments.REGION, help='AWSリージョン')
     args = parser.parse_args()
 
