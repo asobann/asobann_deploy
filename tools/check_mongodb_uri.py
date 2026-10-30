@@ -36,7 +36,7 @@ def get_parameter(profile_name, region_name, name):
 
     profile_name が None なら既定の認証情報チェーンを使う。CIやECSタスクのように
     ロール/環境変数で認証している環境ではプロファイルが存在しないため。
-    手元での既定プロファイルは environments.py が AWS_PROFILE で与える。
+    手元では AWS_PROFILE を明示する（復号の権限が要るので asobann-admin）。
     """
     session = boto3.Session(profile_name=profile_name or None,
                             region_name=region_name)

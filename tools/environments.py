@@ -14,32 +14,15 @@ AWSアカウントIDは書かない。実行時に sts get-caller-identity で�
 """
 
 import functools
-import os
 import subprocess
 
 REGION = 'us-east-1'
 REPO = 'asobann_aws'
 
-# 手元の既定プロファイルは旧本番アカウントを指している。指定し忘れると別アカウントに
-# 向かうので、既定値を入れる。
-#
-# ただし入れてよいのは「共有設定ファイルのプロファイルで認証する」状況に限る。
-# CIやECSタスクのようにロール/環境変数で認証している環境で AWS_PROFILE を立てると、
-# 存在しないプロファイルを探しに行って認証そのものが失敗する。明示的な認証情報が
-# 見えているときは触らない。
-_EXPLICIT_CREDENTIAL_VARS = (
-    'AWS_ACCESS_KEY_ID',                    # 環境変数による認証
-    'AWS_SESSION_TOKEN',                    # 一時認証情報
-    'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',  # ECS/Fargate のタスクロール
-    'AWS_CONTAINER_CREDENTIALS_FULL_URI',
-    'AWS_WEB_IDENTITY_TOKEN_FILE',          # GitHub Actions OIDC / IRSA
-    'AWS_ROLE_ARN',
-)
-
-if not any(os.environ.get(name) for name in _EXPLICIT_CREDENTIAL_VARS):
-    # AWS_PROFILE= と明示的に空を渡した場合も尊重する
-    # （setdefault はキーが存在すれば上書きしない）。
-    os.environ.setdefault('AWS_PROFILE', 'asobann')
+# AWS_PROFILE の既定値は入れない。手元では毎回 AWS_PROFILE を明示する
+# （参照は asobann-readonly、デプロイなどの変更は asobann-admin）。
+# 手元の設定には [default] を置いていないので、指定し忘れると認証情報が
+# 見つからずに止まる。
 
 # デプロイ毎に人間が思い出して打つのをやめ、環境ごとの固定値をコードに置く。
 # 変更履歴はgit logで追える。2026-08-11、GoogleAnalyticsIdをうっかり空のまま
