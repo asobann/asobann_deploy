@@ -12,6 +12,10 @@ asobann_app 側の ADR（`docs/adr/`）を参照。
 - Python >= 3.12 と [uv](https://docs.astral.sh/uv/)。このリポジトリのツール用に `uv sync` を実行しておく
 - AWS CLI。プロファイルは毎回 `AWS_PROFILE` で明示する。参照だけなら `asobann-readonly`、
   push・デプロイ・削除など変更を伴う操作は `asobann-admin`
+- リポジトリの直下に `deploy.local.toml` を置き、想定するAWSアカウントIDを
+  `account_id = "..."` の形で書いておく（gitignore済み）。`deploy.py` / `push_image.py` /
+  `teardown.py` は、今の認証情報のアカウントIDがこれと違えば止まる。本番とstagingは
+  同じアカウントにあるので、両者の区別はこれではなくスタック名と `--env` で行う
 - docker
 - asobann_app をチェックアウト済み（イメージのビルドはあちら側で行う）
 
@@ -70,6 +74,11 @@ stagingはADR 0009の「必要になったときにスタックを作り、確�
 **AWSアカウントIDはリポジトリに書かない。** 実行時に `aws sts get-caller-identity` で
 取る。publicリポジトリだからというだけでなく、定数で持つとプロファイルの設定ミスが
 黙って通るため。証明書もARNではなくIDだけを持ち、ARNは実行時に組み立てる。
+取ったアカウントIDは、手元の `deploy.local.toml` の値と照合する（「前提」を参照）。
+
+本番のスタック `asobann-fargate` と `asobann-dns` には、CloudFormationの削除保護を
+かけてある。`cloudformation deploy` で更新しても外れない。stagingは作成・削除を
+往復するので、かけない。
 
 MongoDBの接続文字列は SSM Parameter Store の SecureString に置き、どこにも平文で
 持たない（ADR 0006）。

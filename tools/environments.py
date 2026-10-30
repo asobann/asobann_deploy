@@ -11,13 +11,23 @@ AWSアカウントIDは書かない。実行時に sts get-caller-identity で�
 
 証明書も同じ理由でARNではなくIDだけを持ち、ARNは実行時に組み立てる。
 証明書ID単体ではアカウントを特定できない。
+
+想定するアカウントIDは、gitignoreした deploy.local.toml に置く。実行時に取った
+アカウントIDがこれと違えば止める（account_id()）。
 """
 
 import functools
+import os
 import subprocess
+import tomllib
+from pathlib import Path
 
 REGION = 'us-east-1'
 REPO = 'asobann_aws'
+
+# 手元の設定。gitignoreしてあり、リポジトリには入らない。中身は
+#   account_id = "123456789012"
+LOCAL_CONFIG = Path(__file__).resolve().parent.parent / 'deploy.local.toml'
 
 # AWS_PROFILE の既定値は入れない。手元では毎回 AWS_PROFILE を明示する
 # （参照は asobann-readonly、デプロイなどの変更は asobann-admin）。
@@ -68,10 +78,25 @@ def get(env):
 
 @functools.cache
 def account_id():
-    """いま使っている認証情報のAWSアカウントIDを取る。"""
-    return subprocess.run(
+    """いま使っている認証情報のAWSアカウントIDを取り、deploy.local.toml の値と照合する。
+
+    違うアカウントに向いていたら、そこで止める。本番とstagingは同じアカウントに
+    あるので、両者の取り違えはこれでは防げない（区別はスタック名と --env で行う）。
+    """
+    if not LOCAL_CONFIG.exists():
+        raise SystemExit(f'{LOCAL_CONFIG} が無い。想定するアカウントIDを '
+                         f'account_id = "..." の形で書いておくこと。')
+    with LOCAL_CONFIG.open('rb') as f:
+        expected = str(tomllib.load(f).get('account_id', ''))
+
+    actual = subprocess.run(
         ['aws', 'sts', 'get-caller-identity', '--query', 'Account', '--output', 'text'],
         capture_output=True, text=True, check=True).stdout.strip()
+    if actual != expected:
+        raise SystemExit(f'今の認証情報のアカウント {actual} が、{LOCAL_CONFIG.name} の '
+                         f'account_id "{expected}" と違う。'
+                         f'（AWS_PROFILE={os.environ.get("AWS_PROFILE", "(未設定)")}）')
+    return actual
 
 
 def registry():

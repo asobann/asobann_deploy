@@ -63,6 +63,8 @@ def main():
     if stack_name != 'asobann-staging':
         raise SystemExit(f'想定外のスタック名: {stack_name}（asobann-stagingのはず）。'
                           f'environments.py の設定を確認すること。')
+    # 同じく、想定したアカウントに向いているかを確かめる。
+    environments.account_id()
 
     print(f'=== {stack_name} を削除する ===')
 
