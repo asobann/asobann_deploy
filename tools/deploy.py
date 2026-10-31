@@ -70,13 +70,12 @@ def main():
 
     p = environments.get(args.env)
 
+    # 何よりも先に、想定したアカウントに向いているかを確かめる。
+    environments.account_id()
+
     # デプロイ前にECRにイメージがあることを確かめる。CloudFormationの更新は
     # イメージが無くても成功し、タスクがpullする段で初めて落ちる。そのとき
     # MinimumHealthyPercent: 0 のため古いタスクは既に止まっており、復帰先が無い。
-    #
-    # アカウントIDを実行時に取るようにした結果、プロファイルの取り違えは
-    # 「別アカウントのレジストリを見る」形で現れる。そのアカウントには
-    # このタグが無いので、このチェックがそこでも効く。
     if not environments.image_exists_in_ecr(args.image_tag):
         print(f'ECRに {environments.image_uri(args.image_tag)} が無い。', file=sys.stderr)
         print(f'先に asobann_deploy で '
