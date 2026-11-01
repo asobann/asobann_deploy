@@ -68,7 +68,6 @@ stagingはADR 0009の「必要になったときにスタックを作り、確�
 | `tools/push_image.py` | ビルド済みイメージをECRへpush |
 | `tools/check_mongodb_uri.py` | SSMの接続文字列を検証する。値は表示せず、構造と認証可否だけ出す |
 | `tools/smoke_test_image.sh` | イメージがローカルで起動し応答するか確認する |
-| `tools/dump_mongodb.sh` | 本番MongoDBのダンプ取得 |
 | `tools/rewrite_image_urls.js` | テーブルデータに埋め込まれた画像URLのバケット名を書き換える |
 
 **AWSアカウントIDはリポジトリに書かない。** 実行時に `aws sts get-caller-identity` で
