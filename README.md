@@ -16,6 +16,10 @@ asobann_app 側の ADR（`docs/adr/`）を参照。
   `account_id = "..."` の形で書いておく（gitignore済み）。`deploy.py` / `push_image.py` /
   `teardown.py` は、今の認証情報のアカウントIDがこれと違えば止まる。本番とstagingは
   同じアカウントにあるので、両者の区別はこれではなくスタック名と `--env` で行う
+- 同じ `deploy.local.toml` に、本番デプロイ前のDBダンプの置き場所を
+  `backup_dir = "..."` の形で書いておく（ADR 0017）。`deploy.py --env prod` は、
+  デプロイの直前にここへダンプを取り、取れなければデプロイしない。ファイル名には
+  日時とイメージのタグが入り、書き終えたら読み取り専用にする
 - docker
 - asobann_app をチェックアウト済み（イメージのビルドはあちら側で行う）
 

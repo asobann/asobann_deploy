@@ -9,6 +9,9 @@ asobann_app/scripts/build_image.sh でビルドし tools/push_image.py で上げ
 MinimumHealthyPercent: 0 のため復帰先が無くなり本番が停止する
 （2026-08-09に13分停止した）。
 
+本番へのデプロイ（changesetを作るだけのときを除く）では、直前にDBのダンプを取り、
+deploy.local.toml の backup_dir に置く（ADR 0017）。取れなければデプロイしない。
+
 使い方:
     AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env staging --image-tag 31ed4ac
     AWS_PROFILE=asobann-admin uv run python tools/deploy.py --env prod --image-tag 31ed4ac
@@ -16,6 +19,7 @@ MinimumHealthyPercent: 0 のため復帰先が無くなり本番が停止する
 """
 
 import argparse
+import datetime
 import os
 import subprocess
 import sys
@@ -25,6 +29,42 @@ import check_mongodb_uri
 import environments
 
 TEMPLATE = Path(__file__).resolve().parent.parent / 'aws' / 'fargate.yaml'
+
+# 本番のAtlasと同じマイナーバージョン（8.0）。smoke_test_image.sh とそろえる。
+DUMP_IMAGE = 'mongo:8.0'
+
+
+def dump_database(env, image_tag):
+    """デプロイの直前にDBのダンプを取る（ADR 0017）。
+
+    デプロイでデータを壊したときに、直前の状態へ戻すためのもの。
+    誤って上書きしないよう、同じ名前のファイルがあれば止め、書き終えたら読み取り専用にする。
+    """
+    backup_dir = environments.local_config().get('backup_dir')
+    if not backup_dir:
+        raise SystemExit(f'{environments.LOCAL_CONFIG.name} に backup_dir が無い。'
+                         f'ダンプの置き場所を backup_dir = "..." の形で書いておくこと。')
+    backup_dir = Path(backup_dir).expanduser()
+    if not backup_dir.is_dir():
+        raise SystemExit(f'backup_dir が無い: {backup_dir}')
+
+    uri = check_mongodb_uri.get_parameter(
+        None, environments.REGION, environments.get(env)['mongodb_uri_parameter_name'])
+    path = backup_dir / f'asobann-{env}-{datetime.datetime.now():%Y%m%d-%H%M%S}-{image_tag}.gz'
+    print(f'=== DBのダンプを取る: {path} ===')
+
+    # 接続文字列はコマンドラインに載せない（プロセス一覧やログに残る）。
+    # 環境変数の名前だけを docker に渡し、値はコンテナの中で展開する。
+    with open(path, 'xb') as f:
+        result = subprocess.run(
+            ['docker', 'run', '--rm', '-e', 'MONGODB_URI', DUMP_IMAGE,
+             'sh', '-c', 'mongodump --uri="$MONGODB_URI" --archive --gzip'],
+            stdout=f, env={**os.environ, 'MONGODB_URI': uri})
+    if result.returncode != 0 or path.stat().st_size == 0:
+        path.unlink()
+        raise SystemExit('DBのダンプに失敗した。デプロイしない。')
+    path.chmod(0o444)
+    print(f'ダンプ完了: {path.stat().st_size} bytes')
 
 
 def build_command(env, image_tag, no_execute_changeset=False):
@@ -88,6 +128,9 @@ def main():
     if not args.skip_mongodb_check:
         if not check_mongodb_uri.check(p['mongodb_uri_parameter_name']):
             return 1
+
+    if args.env == 'prod' and not args.no_execute_changeset:
+        dump_database(args.env, args.image_tag)
 
     uri = environments.image_uri(args.image_tag)
     print(f'=== {args.env} へデプロイ: {uri} ===')
