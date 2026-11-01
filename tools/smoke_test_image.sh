@@ -21,7 +21,8 @@ set -euo pipefail
 IMAGE=${1:?イメージを指定すること}
 PORT=${PORT:-15000}
 NETWORK=asobann-smoke
-MONGO_IMAGE=${MONGO_IMAGE:-mongo:5}
+# 本番のAtlasと同じマイナーバージョン（8.0）にそろえる。
+MONGO_IMAGE=${MONGO_IMAGE:-mongo:8.0}
 
 # 途中で失敗しても使い捨てのコンテナとネットワークを残さない。
 cleanup() {
