@@ -27,6 +27,7 @@ REPO = 'asobann_aws'
 
 # 手元の設定。gitignoreしてあり、リポジトリには入らない。中身は
 #   account_id = "123456789012"
+#   backup_dir = "/path/to/archive"   # 本番デプロイ前のDBダンプの置き場所（ADR 0017）
 LOCAL_CONFIG = Path(__file__).resolve().parent.parent / 'deploy.local.toml'
 
 # AWS_PROFILE の既定値は入れない。手元では毎回 AWS_PROFILE を明示する
@@ -77,17 +78,23 @@ def get(env):
 
 
 @functools.cache
+def local_config():
+    """deploy.local.toml を読む。無ければ止める。"""
+    if not LOCAL_CONFIG.exists():
+        raise SystemExit(f'{LOCAL_CONFIG} が無い。想定するアカウントIDを '
+                         f'account_id = "..." の形で書いておくこと。')
+    with LOCAL_CONFIG.open('rb') as f:
+        return tomllib.load(f)
+
+
+@functools.cache
 def account_id():
     """いま使っている認証情報のAWSアカウントIDを取り、deploy.local.toml の値と照合する。
 
     違うアカウントに向いていたら、そこで止める。本番とstagingは同じアカウントに
     あるので、両者の取り違えはこれでは防げない（区別はスタック名と --env で行う）。
     """
-    if not LOCAL_CONFIG.exists():
-        raise SystemExit(f'{LOCAL_CONFIG} が無い。想定するアカウントIDを '
-                         f'account_id = "..." の形で書いておくこと。')
-    with LOCAL_CONFIG.open('rb') as f:
-        expected = str(tomllib.load(f).get('account_id', ''))
+    expected = str(local_config().get('account_id', ''))
 
     actual = subprocess.run(
         ['aws', 'sts', 'get-caller-identity', '--query', 'Account', '--output', 'text'],
